@@ -7,9 +7,14 @@ body{margin:0;background:#0d3b2e;color:#f3e9d2;font-family:serif;text-align:cent
 #w{max-width:560px;margin:auto;padding:10px}
 h1{font-size:19px;letter-spacing:.12em;margin:4px}
 .s{font-size:12px;color:#bcd8c8}
-#st{min-height:24px;font-size:14px;margin:8px 2px}
+#st{min-height:24px;font-size:14px;margin:8px 2px;white-space:pre-wrap}
 #board{position:relative;width:100%;aspect-ratio:1/1.02;background:#0a2f24;border:2px solid #8a6b3f;border-radius:8px}
-.t{position:absolute;background:#f7f2df;border:1px solid #8a8a7a;border-bottom:3px solid #b0a888;border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box}
+.t{position:absolute;background:#f7f2df;border:1px solid #8a8a7a;border-bottom:3px solid #b0a888;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-sizing:border-box;color:#222;line-height:1.05}
+.t .n{font-size:min(4.4vw,20px);font-weight:bold}
+.t .k{font-size:min(4vw,18px)}
+.t .j{font-size:min(6.4vw,30px);font-weight:bold}
+.t.man .k{color:#333}.t.sou .k{color:#1d7a3a}.t.pin .k{color:#2050a0}
+.t .chu{color:#c0272d}.t .hatsu{color:#1d7a3a}
 .t.lock{filter:brightness(.72)}
 .t.sel{outline:3px solid #e8a34f;background:#fff3cf}
 .t.hint{outline:3px solid #7fd48a}
@@ -30,10 +35,6 @@ button.act{font-size:14px;padding:9px 18px;background:#7c2128;color:#fff;border:
 </div><script>
 "use strict";
 //CORE-START
-function tileGlyph(t){
- if(t<27){const b=[0x1F007,0x1F010,0x1F019];return String.fromCodePoint(b[(t/9)|0]+(t%9))}
- return String.fromCodePoint(0x1F000+(t-27));
-}
 function layout(){
  const P=[];
  for(let r=0;r<6;r++)for(let c=0;c<8;c++)P.push({l:0,r:r,c:c});
@@ -68,6 +69,12 @@ function generate(){
  return null;
 }
 //CORE-END
+const KANJI=["萬","索","筒"],SUITS=["man","sou","pin"],JI=["東","南","西","北","中"],JICLS=["","","","","chu"];
+function tileHTML(t){
+ if(t<27)return '<span class="n">'+(t%9+1)+'</span><span class="k">'+KANJI[(t/9)|0]+"</span>";
+ const j=t-27;return '<span class="j '+JICLS[j]+'">'+JI[j]+"</span>";
+}
+function tileCls(t){return t<27?SUITS[(t/9)|0]:"ji"}
 let P=[],assign=new Map(),gone=new Set(),sel=null,startAt=null,timerId=null,removedPairs=0;
 const board=document.getElementById("board"),stEl=document.getElementById("st");
 function remaining(){return P.filter(p=>!gone.has(key(p)))}
@@ -84,15 +91,14 @@ function render(){
  for(const p of P){
   const k=key(p);if(gone.has(k))continue;
   const d=document.createElement("div");
-  d.className="t"+(isFree(p,rem)?"":" lock");
+  d.className="t "+tileCls(assign.get(k))+(isFree(p,rem)?"":" lock");
   const w=11.6,h=15.2;
   d.style.width=w+"%";d.style.height=h+"%";
   d.style.left=(p.c*12.3+(p.l?5.4:0.4))+"%";
   d.style.top=(p.r*16.2+(p.l?-1.6:0.6))+"%";
   d.style.zIndex=p.l*10+p.r;
-  d.style.fontSize="min(7.2vw,34px)";
   if(sel===k)d.classList.add("sel");
-  d.textContent=tileGlyph(assign.get(k));
+  d.innerHTML=tileHTML(assign.get(k));
   d.onclick=()=>tap(p);
   board.appendChild(d);
  }
@@ -111,7 +117,6 @@ function tap(p){
  const k=key(p);
  if(sel===k){sel=null;render();return}
  if(sel===null){sel=k;render();return}
- const selP=P.find(q=>key(q)===sel);
  if(assign.get(sel)===assign.get(k)){
   gone.add(sel);gone.add(k);sel=null;removedPairs++;
   if(gone.size===P.length){clearInterval(timerId);render();stEl.textContent="全消しクリア！ "+elapsed()+" 秒でした";return}
@@ -123,10 +128,9 @@ document.getElementById("hint").onclick=()=>{
  const pr=findPair();
  if(!pr){status("今は消せるペアがありません");return}
  render();
- for(const p of pr){const idx=remaining().indexOf(p);
-  const els=board.children;let n=0;
-  for(const q of P){const k=key(q);if(gone.has(k))continue;if(k===key(p)){els[n].classList.add("hint")}n++}
- }
+ const targets=new Set(pr.map(key));
+ let n=0;
+ for(const q of P){const k=key(q);if(gone.has(k))continue;if(targets.has(k))board.children[n].classList.add("hint");n++}
 };
 document.getElementById("shuffle").onclick=()=>{
  const rem=remaining(),ts=rem.map(p=>assign.get(key(p)));
